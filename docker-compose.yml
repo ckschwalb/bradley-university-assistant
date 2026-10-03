@@ -1,0 +1,40 @@
+# Bradley University AI Assistant
+#
+#   docker compose up --build        # then open http://localhost:8000
+#
+# app:      web UI and chat API
+# crawler:  keeps the bradley.edu index current (on request, and on a schedule when auto-crawl is on)
+#
+# Both share one SQLite database on the "data" volume. The port is bound to 127.0.0.1,
+# so the app is reachable only from this computer.
+
+name: bradley-assistant
+
+x-common: &common
+  image: bradley-assistant:latest
+  volumes:
+    - data:/data
+  restart: unless-stopped
+
+services:
+  app:
+    <<: *common
+    build: .
+    ports:
+      - "127.0.0.1:${PORT:-8000}:8000"
+    environment:
+      PUBLIC_BASE_URL: http://localhost:${PORT:-8000}
+      ADMIN_TOKEN: ${ADMIN_TOKEN:-}  # optional: require this token for /admin and the settings API
+
+  crawler:
+    <<: *common
+    pull_policy: never  # uses the image the app service builds
+    command: ["python", "crawler_service.py"]
+    healthcheck:
+      disable: true
+    depends_on:
+      app:
+        condition: service_healthy  # the app creates the database tables on startup
+
+volumes:
+  data:

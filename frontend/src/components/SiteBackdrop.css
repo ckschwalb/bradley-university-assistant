@@ -1,0 +1,14 @@
+.site-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  /* Covers the static screenshot so it doesn't flash while the live page loads */
+  background-color: white;
+}
+
+.site-backdrop iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+}

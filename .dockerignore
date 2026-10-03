@@ -1,0 +1,42 @@
+# Secrets and local state never go into the image
+**/.env
+**/.env.*
+**/*.db
+**/*.db-*
+**/*.sqlite3
+backups/
+data/
+
+# Git and docs
+.git
+.gitignore
+*.md
+docs/
+
+# Python
+**/__pycache__/
+**/*.py[cod]
+**/.pytest_cache/
+**/.venv/
+**/venv/
+**/env/
+
+# Node (the frontend is built inside the image)
+frontend/node_modules/
+frontend/build/
+npm-debug.log*
+
+# Built frontend copied into backend/ for local runs
+backend/static/
+
+# Tests and CI config aren't needed at runtime
+backend/tests/
+backend/.ruff_cache/
+.github/
+
+# IDE and OS
+.vscode/
+.idea/
+.DS_Store
+*.swp
+*.log

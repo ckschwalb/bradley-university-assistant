@@ -1,0 +1,968 @@
+.chatbot-widget {
+  --widget-bottom: 20px;
+  --widget-scale: 1.15; /* the whole widget (chat window and launch button) is drawn 15% larger */
+  --widget-top-clearance: 16px; /* space the chat window always leaves above itself */
+  position: fixed;
+  bottom: var(--widget-bottom);
+  right: 20px;
+  z-index: 1000;
+}
+
+/* Clear bradley.edu's sticky Apply / Visit / Info bar when the live site is behind the widget */
+.site-backdrop + .chatbot-widget {
+  --widget-bottom: 84px;
+  --widget-top-clearance: 96px; /* bradley.edu's sticky header is 83px tall at any zoom level, plus a gap */
+}
+
+.chatbot-toggle {
+  position: relative;
+  zoom: var(--widget-scale);
+  height: 56px;
+  padding: 0 22px 0 18px;
+  border-radius: 28px;
+  background-color: #CF1430;
+  color: white;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+  transition: all 0.3s ease;
+  /* A light sweep passes over the button every few seconds */
+  background-image: linear-gradient(110deg, transparent 35%, rgba(255, 255, 255, 0.28) 50%, transparent 65%);
+  background-size: 250% 100%;
+  background-repeat: no-repeat;
+  animation: toggle-shimmer 3.6s ease-in-out infinite;
+}
+
+/* Two rings spread out from the button, offset so one is always travelling */
+.chatbot-toggle::before,
+.chatbot-toggle::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  animation: toggle-ripple 2.4s ease-out infinite;
+}
+
+.chatbot-toggle::after {
+  animation-delay: 1.2s;
+}
+
+@keyframes toggle-ripple {
+  0% {
+    box-shadow: 0 0 0 0 rgba(207, 20, 48, 0.55);
+  }
+  100% {
+    box-shadow: 0 0 0 22px rgba(207, 20, 48, 0);
+  }
+}
+
+@keyframes toggle-shimmer {
+  0%, 55% {
+    background-position: 130% 0;
+  }
+  100% {
+    background-position: -30% 0;
+  }
+}
+
+.chatbot-toggle svg {
+  font-size: 22px;
+}
+
+.chatbot-toggle:hover {
+  animation: none;
+  background-image: none;
+  background-color: #AA1027;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(207, 20, 48, 0.4);
+}
+
+.chatbot-toggle:hover::before,
+.chatbot-toggle:hover::after {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chatbot-toggle,
+  .chatbot-toggle::before,
+  .chatbot-toggle::after {
+    animation: none;
+  }
+
+  .chatbot-toggle {
+    background-image: none;
+  }
+}
+
+.chatbot-container {
+  zoom: var(--widget-scale);
+  width: 450px;
+  height: 450px;
+  /* Never taller or wider than the room the page leaves: zooming in shrinks the viewport, but the
+     site's header stays the same size, so the window shrinks instead of covering the header.
+     Divided by the scale because the window is drawn zoomed. */
+  max-height: calc((100dvh - var(--widget-bottom) - var(--widget-top-clearance)) / var(--widget-scale));
+  max-width: calc((100vw - 40px) / var(--widget-scale));
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.chatbot-container.expanded {
+  width: 800px;
+  height: 600px;
+}
+
+.expand-button {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background-color 0.2s ease;
+}
+.expand-button:hover {
+  background-color: rgba(255,255,255,0.2);
+}
+
+.chatbot-header {
+  background-color: #CF1430;
+  color: white;
+  padding: 12px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-radius: 8px 8px 0 0;
+}
+
+.chatbot-header h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background-color 0.2s ease;
+}
+
+.close-button:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.chatbot-messages {
+  --message-gap: 20px; /* between bubbles (6px + the 12px timestamp line + its 2px margin), and above the first thing */
+  position: relative; /* makes it the offsetParent the reply scroll position is measured from */
+  flex: 1;
+  padding: var(--message-gap) 32px 32px;
+  overflow-y: auto;
+  background-color: #f8f9fa;
+}
+
+.message {
+  margin-bottom: 6px; /* with the timestamp line below each bubble: --message-gap, the space between bubbles */
+  display: flex;
+  flex-direction: column;
+}
+
+.message.user {
+  align-items: flex-end;
+}
+
+.message.bot {
+  align-items: flex-start;
+}
+
+.message-content {
+  max-width: 70%; /* narrower bubbles → wider side margins */
+  padding: 14px 16px; /* roomier bubble padding */
+  border-radius: 10px;
+  word-wrap: break-word;
+  line-height: 1.45; /* improve readability with extra leading */
+  text-align: left;
+  font-size: 14px;
+}
+
+/* Markdown styling for bot messages */
+.message.bot .message-content {
+  background-color: white;
+  color: #374151;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  text-align: left;
+}
+
+/* Markdown content styling */
+.message.bot .message-content h1,
+.message.bot .message-content h2,
+.message.bot .message-content h3,
+.message.bot .message-content h4,
+.message.bot .message-content h5,
+.message.bot .message-content h6 {
+  margin: 0 0 8px 0;
+  color: #1f2937;
+  font-weight: 600;
+}
+
+.message.bot .message-content h1 { font-size: 16px; }
+.message.bot .message-content h2 { font-size: 14px; }
+.message.bot .message-content h3 { font-size: 13px; }
+.message.bot .message-content h4 { font-size: 12px; }
+.message.bot .message-content h5 { font-size: 11px; }
+.message.bot .message-content h6 { font-size: 11px; }
+
+.message.bot .message-content p {
+  margin: 0 0 8px 0;
+  line-height: 1.5;
+}
+
+.message.bot .message-content ul,
+.message.bot .message-content ol {
+  margin: 8px 0;
+  padding-left: 20px;
+}
+
+.message.bot .message-content li {
+  margin: 4px 0;
+  line-height: 1.4;
+}
+
+.message.bot .message-content strong,
+.message.bot .message-content b {
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.message.bot .message-content em,
+.message.bot .message-content i {
+  font-style: italic;
+}
+
+.message.bot .message-content code {
+  background-color: #f3f4f6;
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+}
+
+.message.bot .message-content pre {
+  background-color: #f3f4f6;
+  padding: 12px;
+  border-radius: 6px;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+
+.message.bot .message-content pre code {
+  background: none;
+  padding: 0;
+}
+
+.message.bot .message-content blockquote {
+  border-left: 4px solid #CF1430;
+  margin: 8px 0;
+  padding-left: 12px;
+  color: #6b7280;
+  font-style: italic;
+}
+
+.message.bot .message-content hr {
+  border: none;
+  border-top: 1px solid #e5e7eb;
+  margin: 12px 0;
+}
+
+.message.user .message-content {
+  background-color: #CF1430;
+  color: white;
+  border-bottom-right-radius: 4px;
+}
+
+.message.bot .message-content {
+  background-color: white;
+  color: #1f2937;
+  border: 1px solid #e5e7eb;
+  border-bottom-left-radius: 4px;
+  padding-bottom: 10px; /* tighter than the top: the last thing in a reply is a small row of controls */
+}
+
+.message-timestamp {
+  font-size: 11px;
+  line-height: 12px;
+  color: #9ca3af;
+  margin-top: 2px;
+  margin-left: 8px;
+}
+
+.message.user .message-timestamp {
+  margin-right: 8px;
+}
+
+.sources {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.source-link {
+  color: #CF1430;
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.2s ease;
+}
+
+.source-link:hover {
+  text-decoration: underline;
+  color: #AA1027;
+}
+
+/* Shown on its own (no bubble) until the reply's first words arrive */
+.typing-indicator {
+  display: flex;
+  gap: 4px;
+  padding: 6px 4px;
+  margin-bottom: 16px;
+}
+
+.typing-indicator span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #9ca3af; /* darker than in a bubble: it now sits on the gray background */
+  animation: typing 1.4s infinite ease-in-out;
+}
+
+.typing-indicator span:nth-child(1) {
+  animation-delay: -0.32s;
+}
+
+.typing-indicator span:nth-child(2) {
+  animation-delay: -0.16s;
+}
+
+@keyframes typing {
+  0%, 80%, 100% {
+    transform: scale(0.8);
+    opacity: 0.5;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.chatbot-input {
+  padding: 12px 18px 18px;
+  background-color: #f8f9fa; /* same as the messages above, so there's no separate box around the input */
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.suggestions-container {
+  display: flex;
+  flex-wrap: nowrap; /* always one row; scrolls sideways if the labels ever outgrow the width */
+  gap: 8px;
+  justify-content: flex-start;
+  align-items: center;
+  overflow-x: auto;
+  scrollbar-width: none;
+  /* overflow-x also clips vertically, so leave room for the hover lift inside the box;
+     the negative margin cancels the padding so the layout doesn't move */
+  padding: 2px;
+  margin: -2px;
+}
+
+.suggestions-container::-webkit-scrollbar {
+  display: none;
+}
+
+.suggestion-pill {
+  background-color: #CF1430;
+  color: white;
+  border: none;
+  border-radius: 20px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  white-space: nowrap;
+  flex: 0 0 auto;
+  font-family: inherit;
+}
+
+.suggestion-pill:hover:not(:disabled) {
+  background-color: #AA1027;
+}
+
+.suggestion-pill:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.input-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: #e5e7eb; /* the same gray as the notice badge */
+  border: 1px solid #d5d7da;
+  border-radius: 10px; /* the same corners as the message bubbles */
+  padding: 4px 18px 4px 12px; /* 12px + the textarea's 6px = 18px from the text to the left edge, and from the arrow to the right */
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.char-count {
+  margin-top: 4px;
+  font-size: 12px;
+  text-align: right;
+  color: #6b7280;
+}
+
+.chatbot-input textarea {
+  flex: 1;
+  background-color: transparent;
+  border: none;
+  border-radius: 6px;
+  padding: 4px 6px;
+  resize: none;
+  font-family: inherit;
+  font-size: 15px;
+  line-height: 1.4;
+  box-sizing: border-box; /* height includes the padding, so the script can size it to the text */
+  min-height: 29px; /* one line: 1.4 * 15px + 8px padding */
+  text-align: left;
+  color: #111827;
+  caret-color: #111827;
+  overflow-y: auto; /* scrolls once the text passes two lines */
+}
+
+.chatbot-input textarea:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+.chatbot-input textarea::placeholder {
+  color: #6b7280; /* darker than before so it still reads on the darker box */
+}
+
+/* A small arrow in a rounded square, like the bubbles. (.chatbot-input button below is more specific
+   than a bare class, so these rules repeat the parent) */
+.chatbot-input .send-button {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 7px;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.chatbot-input button {
+  background-color: #CF1430;
+  color: white;
+  border: none;
+  border-radius: 16px;
+  padding: 10px 16px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+  transition: background-color 0.2s ease;
+  white-space: nowrap;
+}
+
+.chatbot-input button:hover:not(:disabled) {
+  background-color: #AA1027;
+}
+
+.chatbot-input button:disabled {
+  background-color: #b9bdc5; /* the original #d1d5db would blend into the darker input box */
+  cursor: not-allowed;
+}
+
+/* Start screen: what the assistant is, then demo mode or your own API key */
+.start-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 24px 28px;
+  text-align: center;
+  background-color: #f8f9fa;
+  overflow-y: auto;
+}
+
+.start-content h3 {
+  margin: 0 0 14px 0;
+  color: #1f2937;
+  font-size: 19px;
+  font-weight: 600;
+}
+
+.start-content p {
+  margin: 0 0 12px 0;
+  color: #374151;
+  line-height: 1.55;
+  font-size: 14px;
+  max-width: 400px;
+}
+
+.start-button {
+  margin-top: 10px;
+  background-color: #CF1430;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 32px;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  min-width: 140px;
+}
+
+.start-button:hover:not(:disabled) {
+  background-color: #AA1027;
+}
+
+.start-button:disabled {
+  background-color: #d1d5db;
+  cursor: not-allowed;
+}
+
+.start-content p.start-small {
+  margin: 14px 0 0;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.link-button {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: #AA1027;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.start-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.start-actions .start-button {
+  margin-top: 12px;
+}
+
+.start-actions .link-button {
+  margin-top: 12px;
+  font-size: 14px;
+}
+
+.key-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  max-width: 340px;
+  margin-top: 16px;
+}
+
+.key-fields select,
+.key-fields input {
+  height: 38px;
+  padding: 0 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: white;
+  font-family: inherit;
+  font-size: 14px;
+  color: #1f2937;
+}
+
+.start-link {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #AA1027;
+  font-weight: 600;
+}
+
+.start-content p.start-error {
+  margin: 10px 0 0;
+  font-size: 13px;
+  color: #9E1028;
+}
+
+/* One-line notice at the top of the chat */
+.preview-notice {
+  background-color: #f8f9fa;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 6px 12px;
+  margin-bottom: var(--message-gap);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  line-height: 1.4;
+  text-align: left;
+  width: fit-content;
+  margin-left: auto; /* centered in the window */
+  margin-right: auto;
+}
+
+.notice-badge {
+  background-color: #e5e7eb;
+  color: #374151;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.notice-text {
+  color: #6b7280;
+  flex: 1;
+}
+
+/* Feedback controls */
+.feedback-controls {
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.feedback-buttons {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.feedback-btn {
+  background: none;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 4px 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #6b7280;
+  transition: all 0.2s ease;
+}
+
+.feedback-btn:hover:not(.disabled) {
+  background-color: #f9fafb;
+  border-color: #9ca3af;
+}
+
+.feedback-btn.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.feedback-btn-up:hover:not(.disabled) {
+  color: #16a34a;
+  border-color: #16a34a;
+}
+
+.feedback-btn-down:hover:not(.disabled) {
+  color: #CF1430;
+  border-color: #CF1430;
+}
+
+.feedback-btn-up.active {
+  color: #16a34a;
+  border-color: #16a34a;
+  background-color: #f0fdf4;
+}
+
+.feedback-btn-down.active {
+  color: #CF1430;
+  border-color: #CF1430;
+  background-color: #fef2f2;
+}
+
+/* Feedback status indicators for read-only view */
+.feedback-status {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.feedback-indicators {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.feedback-indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid;
+}
+
+.feedback-indicator.thumbs-up {
+  color: #16a34a;
+  border-color: #16a34a;
+  background-color: #f0fdf4;
+}
+
+.feedback-indicator.thumbs-down {
+  color: #CF1430;
+  border-color: #CF1430;
+  background-color: #fef2f2;
+}
+
+.feedback-indicator.no-feedback {
+  color: #6b7280;
+  border-color: #d1d5db;
+  background-color: #f3f4f6;
+  font-style: italic;
+}
+
+.feedback-comment-display {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #CF1430;
+  margin-top: 4px;
+}
+
+.feedback-comment-box {
+  margin-top: 8px;
+}
+
+.feedback-textarea {
+  width: 100%;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 8px;
+  font-size: 12px;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 60px;
+  box-sizing: border-box;
+}
+
+.feedback-textarea:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+.feedback-comment-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.feedback-submit-btn {
+  background-color: #CF1430;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.feedback-submit-btn:hover:not(:disabled) {
+  background-color: #AA1027;
+}
+
+.feedback-submit-btn:disabled {
+  background-color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.feedback-cancel-btn {
+  background: none;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  color: #6b7280;
+  transition: all 0.2s ease;
+}
+
+.feedback-cancel-btn:hover:not(:disabled) {
+  background-color: #f9fafb;
+  border-color: #9ca3af;
+}
+
+.feedback-thanks {
+  margin-top: 4px;
+}
+
+.thanks-text {
+  font-size: 12px;
+  color: #16a34a;
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* Title bar: the name with the Demo chip, and the admin, enlarge and minimize buttons */
+.chatbot-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.mode-chip {
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.15);
+  color: white;
+  border-radius: 999px;
+  padding: 1px 8px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+}
+
+.mode-chip:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.admin-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 12px;
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background-color 0.2s ease;
+}
+
+.admin-button:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+.setup-notice {
+  margin: 8px 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  color: #7c2d12;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.setup-notice a {
+  color: inherit;
+  font-weight: 600;
+}
+
+/* Phones: the panel fills the width of the screen */
+/* Short windows (a small screen, or a page zoomed in): give the room to the conversation and the input */
+@media (max-height: 560px) {
+  .chatbot-input {
+    padding: 12px 18px;
+  }
+
+  .suggestions-container {
+    display: none;
+  }
+}
+
+@media (max-width: 520px) {
+  .chatbot-widget {
+    --widget-bottom: 12px;
+    --widget-scale: 1; /* the chat window already fills the screen width */
+    right: 12px;
+  }
+
+  .site-backdrop + .chatbot-widget {
+    --widget-bottom: 60px;
+    --widget-top-clearance: 90px; /* the site's header is 78px tall at this width */
+  }
+
+  .chatbot-widget .chatbot-container,
+  .chatbot-widget .chatbot-container.expanded {
+    width: calc(100vw - 24px);
+    max-width: none;
+    height: calc(100dvh - var(--widget-bottom) - var(--widget-top-clearance));
+    max-height: 640px;
+  }
+
+  .chatbot-messages {
+    padding: 16px;
+  }
+
+  .expand-button {
+    display: none;
+  }
+}

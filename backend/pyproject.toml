@@ -1,0 +1,60 @@
+[project]
+name = "bradley-assistant"
+version = "1.0.0"
+description = "Chat assistant that answers questions about Bradley University from its public website"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi~=0.142",
+    "uvicorn~=0.54",
+    "python-dotenv~=1.2",
+    "aiohttp~=3.14",
+    "beautifulsoup4~=4.15",
+    "markdownify~=1.2",
+    "lxml~=6.1",
+    "numpy>=2.0,<3",
+    "pytz>=2026.1",
+    "sqlmodel~=0.0.47",
+    # Chat models: the provider is chosen in the admin dashboard
+    "langchain~=1.4",
+    "langchain-core~=1.6",
+    "langchain-text-splitters~=1.1",
+    "langchain-openai~=1.6",
+    "langchain-anthropic~=1.7",
+    "langchain-google-genai~=4.4",
+    # Local embeddings (ONNX, CPU)
+    "fastembed~=0.8",
+]
+
+[dependency-groups]
+dev = [
+    "pytest~=9.1",
+    "httpx~=0.28",
+    "ruff~=0.15",
+]
+
+[tool.uv]
+package = false  # an application run from this folder, not a library to install
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+# pyflakes, pycodestyle errors, import hygiene, bugbear, and pyupgrade
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = [
+    "E501",  # long lines are left to the formatter's judgement; comments and f-strings run past 120
+    "B008",  # FastAPI's Depends(...) in argument defaults
+    "UP045", "UP006", "UP035",  # the codebase uses typing.Optional/List throughout
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["answering", "auth", "clock", "db", "demo", "embeddings", "evaluator", "llm", "models",
+                     "observability", "review", "routers", "search", "settings_store", "system_prompt"]
+
+[tool.ruff.lint.per-file-ignores]
+# conftest sets environment variables and sys.path before importing the app
+"tests/conftest.py" = ["E402"]
