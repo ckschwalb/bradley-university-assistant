@@ -2,6 +2,8 @@
 
 > A university-sponsored preview, built with guidance and support from Bradley University and with its permission. It hasn't launched. It reads only the university's public website and course catalog.
 
+![The assistant open over the bradley.edu home page, answering a question about studying abroad from the website and one about machine learning courses from the course catalog, each with links to its sources](.github/demo.gif)
+
 A chat assistant that answers questions about Bradley University using the university's public website and course catalog. It runs on your own computer in Docker. It works out of the box in **demo mode**, answering by quoting the most relevant passages from Bradley's pages. Add your own API key (Claude, OpenAI, or Gemini) for AI-written answers. Search runs on a local model either way.
 
 ## Quick start
