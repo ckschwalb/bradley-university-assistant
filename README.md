@@ -6,6 +6,23 @@
 
 A chat assistant that answers questions about Bradley University using the university's public website and course catalog. It runs on your own computer in Docker. It works out of the box in **demo mode**, answering by quoting the most relevant passages from Bradley's pages. Add your own API key (Claude, OpenAI, or Gemini) for AI-written answers. Search runs on a local model either way.
 
+## Context
+Sometimes, the most exciting journeys begin from the smallest questions. In the summer of 2025, when I asked the Bradley University Office of the CIO if I could create a demo for a Bradley AI assistant, they jumped at the opportunity.
+
+After the first demo came a semester-long collaborative effort. As President of the Bradley University AI Club, our team brought in students from computer science, engineering, and business backgrounds to work together on the app, making critical decisions that truly shaped its development. Together, we deliberated web scraping vs. live website pulls, safeguarding AI responses, and look & feel.
+
+The initial repo was handed off to the CIO's office prior to my graduation. Due to the unpredictable nature of LLM responses combined with general upkeep requirements, the app is unlikely to be published on the university webpage.
+
+Since my graduation, I've made several improvements to the application as I strive to better my personal understanding of AI applications and how to create the best AI-driven user experiences possible.
+
+## How it works
+
+1. **A web crawler reads Bradley's website.** It collects about 1,400 public pages from bradley.edu and about 3,100 course descriptions from the course catalog. It also checks back for changes, so answers stay current.
+2. **Pages are chunked, embedded, and indexed.** Each web page is split into chunks, and a small **embeddings model** stores each chunk as a **vector** (a list of numbers that represents the chunk's meaning). This lets the assistant search by *meaning* rather than exact keywords. For example, the question "Can I study overseas?" still retrieves the Study Abroad page.
+3. **User questions are turned into embeddings and queried against the knowledge base.** Each question is turned into a vector, which is used to pull the five chunks closest in meaning.
+4. **An LLM uses those chunks to answer the question.** The answer links to the pages it used, so anyone can check it. The LLM can be Claude, GPT, or Gemini. Without an API key, the assistant quotes the best-matching chunks directly.
+5. **An evaluator model checks the answer.** It scores each answer from 1 to 5 on groundedness (every fact comes from the retrieved chunks), relevance, and completeness. Answers that look wrong, along with negative user ratings, are flagged for review in the admin dashboard.
+
 ## Quick start
 
 You need [Docker Desktop](https://www.docker.com/products/docker-desktop/). For AI-written answers you also need an API key from one of [Anthropic](https://console.anthropic.com/settings/keys), [OpenAI](https://platform.openai.com/api-keys), or [Google AI Studio](https://aistudio.google.com/apikey); without one the chat runs in demo mode.
@@ -41,7 +58,7 @@ Needs review combines simple text checks ([review.py](backend/review.py)) with t
 
 By default the dashboard has no password because the app is only reachable from your machine. To require one, set `ADMIN_TOKEN` (`ADMIN_TOKEN=choose-a-long-random-string docker compose up`): the dashboard then asks for the token before it loads, and the admin and settings APIs refuse requests without `Authorization: Bearer <token>`. The chat itself stays open. Questions are limited to 1,000 characters.
 
-## How it works
+## Architecture
 
 ```
                  ┌──────────────────────── Docker Compose ─────────────────────────┐
